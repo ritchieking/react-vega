@@ -168,7 +168,7 @@ Rules:
 - If a chart passes `options.config` as a URL string, it replaces the provider config.
 - Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`, so resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
 
-Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed.
+Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed. Define themes outside your components, or memoize them, when they contain functions such as `expressionFunctions` or a tooltip handler: functions are compared by reference, so a new function on every render re-embeds every chart on every render.
 
 ## Important
 Any changes to `spec` or `options`, or to the theme from an enclosing [`VegaThemeProvider`](#theming-with-vegathemeprovider), will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
