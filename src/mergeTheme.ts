@@ -91,29 +91,31 @@ function getVariant(
     : undefined;
 }
 
-/**
- * Resolves one provider's theme on top of its parent's. The base layers of
- * all themes are applied in array order, then the active variant of each
- * theme in the same order, so a variant always beats every base layer.
- */
-export function mergeTheme(
-  parent: ResolvedVegaTheme | null,
-  theme: VegaThemeInput,
-  variant: string | undefined,
-): ResolvedVegaTheme {
+/** Normalizes a `theme` prop to a list of themes, skipping falsy entries. */
+export function toThemeList(theme: VegaThemeInput | undefined): VegaTheme[] {
   const list = (Array.isArray(theme) ? theme : [theme]) as ReadonlyArray<
     VegaTheme | null | undefined | false
   >;
-  const themes = list.filter((entry): entry is VegaTheme => !!entry);
-  const variants =
-    variant === undefined
-      ? []
-      : themes.map((entry) => getVariant(entry, variant));
-  const layers: ReadonlyArray<VegaThemeLayer | null | undefined> = [
-    parent,
-    ...themes,
-    ...variants,
-  ];
+  return list.filter((entry): entry is VegaTheme => !!entry);
+}
+
+/**
+ * Resolves a stack of providers' themes, outermost first, for one variant.
+ * Within each provider, the base layers of its themes are applied in array
+ * order, then the variant layer of each theme in the same order, so the
+ * variant beats every base layer of that provider.
+ */
+export function mergeTheme(
+  stack: ReadonlyArray<ReadonlyArray<VegaTheme>>,
+  variant: string | undefined,
+): ResolvedVegaTheme {
+  const layers: Array<VegaThemeLayer | undefined> = [];
+  for (const themes of stack) {
+    layers.push(...themes);
+    if (variant !== undefined) {
+      layers.push(...themes.map((theme) => getVariant(theme, variant)));
+    }
+  }
 
   return {
     config: deepMerge<Config>(...layers.map((layer) => layer?.config)),

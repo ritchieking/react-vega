@@ -20,7 +20,7 @@ export function useVegaEmbed(params: UseVegaEmbedParams): Result | null {
 
   // Under a <VegaThemeProvider>, merge the provider's theme under the chart's
   // own options. Without one, pass `options` through untouched.
-  const theme = React.useContext(VegaThemeContext);
+  const theme = React.useContext(VegaThemeContext)?.theme;
   const options = React.useMemo(
     () => (theme ? applyTheme(theme, params.options) : (params.options ?? {})),
     [theme, params.options],

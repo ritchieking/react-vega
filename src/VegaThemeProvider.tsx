@@ -1,8 +1,12 @@
 import React from "react";
 import deepEqual from "fast-deep-equal";
-import { VegaThemeContext } from "./VegaThemeContext";
+import {
+  VegaThemeContext,
+  type VegaThemeContextValue,
+} from "./VegaThemeContext";
 import {
   mergeTheme,
+  toThemeList,
   type ResolvedVegaTheme,
   type VegaThemeInput,
 } from "./mergeTheme";
@@ -16,15 +20,23 @@ export type {
 } from "./mergeTheme";
 
 export type VegaThemeProviderProps = {
-  /** A theme, or an array of themes merged left to right. Falsy entries are skipped. */
-  theme: VegaThemeInput;
   /**
-   * The variant to layer on top of the theme(s), e.g. `"dark"`. `"auto"`
-   * resolves to `"dark"` or `"light"` from `prefers-color-scheme` and follows
-   * changes. When omitted, the parent provider's variant is used.
+   * A theme, or an array of themes merged left to right. Falsy entries are
+   * skipped. Omit it to only change the variant for part of the tree.
+   */
+  theme?: VegaThemeInput;
+  /**
+   * The variant to apply, e.g. `"dark"`. It applies to the themes of this
+   * provider and of every enclosing provider. `"auto"` resolves to `"dark"`
+   * or `"light"` from `prefers-color-scheme` and follows changes. When
+   * omitted, the parent provider's variant is used.
    */
   variant?: "auto" | (string & {});
-  /** Merge on top of the parent provider's theme. Defaults to `true`. */
+  /**
+   * Merge on top of the enclosing provider's themes. Defaults to `true`.
+   * With `false`, the parent's themes are ignored, but its variant still
+   * applies unless `variant` is set.
+   */
   inherit?: boolean;
   children: React.ReactNode;
 };
@@ -73,8 +85,7 @@ function useDeepStable<T>(value: T): T {
 export function VegaThemeProvider(props: VegaThemeProviderProps) {
   const { theme, variant, inherit = true, children } = props;
 
-  const parentTheme = React.useContext(VegaThemeContext);
-  const parent = inherit ? parentTheme : null;
+  const parent = React.useContext(VegaThemeContext);
 
   const prefersDark = usePrefersDark(variant === "auto");
   const resolvedVariant =
@@ -82,13 +93,15 @@ export function VegaThemeProvider(props: VegaThemeProviderProps) {
       ? prefersDark
         ? "dark"
         : "light"
-      : (variant ?? parent?.variant);
+      : (variant ?? parent?.theme.variant);
 
-  const stableTheme = useDeepStable(theme);
-  const value = React.useMemo(
-    () => mergeTheme(parent, stableTheme, resolvedVariant),
-    [parent, stableTheme, resolvedVariant],
-  );
+  const themes = useDeepStable(toThemeList(theme));
+  const parentStack = inherit ? parent?.stack : undefined;
+
+  const value = React.useMemo<VegaThemeContextValue>(() => {
+    const stack = parentStack ? [...parentStack, themes] : [themes];
+    return { stack, theme: mergeTheme(stack, resolvedVariant) };
+  }, [parentStack, themes, resolvedVariant]);
 
   return (
     <VegaThemeContext.Provider value={value}>
@@ -108,5 +121,5 @@ const NO_THEME: ResolvedVegaTheme = Object.freeze({
  * `options` of all enclosing providers, and the resolved `variant`.
  */
 export function useVegaTheme(): ResolvedVegaTheme {
-  return React.useContext(VegaThemeContext) ?? NO_THEME;
+  return React.useContext(VegaThemeContext)?.theme ?? NO_THEME;
 }

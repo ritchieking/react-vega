@@ -3,6 +3,7 @@ import {
   applyTheme,
   deepMerge,
   mergeTheme,
+  toThemeList,
   type ResolvedVegaTheme,
   type VegaTheme,
 } from "./mergeTheme";
@@ -81,6 +82,16 @@ describe("deepMerge", () => {
   });
 });
 
+describe("toThemeList", () => {
+  const theme: VegaTheme = { config: { background: "white" } };
+
+  it("wraps a single theme and skips falsy entries", () => {
+    expect(toThemeList(theme)).toEqual([theme]);
+    expect(toThemeList(undefined)).toEqual([]);
+    expect(toThemeList([false, theme, null, undefined])).toEqual([theme]);
+  });
+});
+
 describe("mergeTheme", () => {
   const brand: VegaTheme = {
     config: { background: "white", axis: { labelColor: "black" } },
@@ -91,7 +102,7 @@ describe("mergeTheme", () => {
   };
 
   it("resolves a single theme without a variant", () => {
-    expect(mergeTheme(null, brand, undefined)).toEqual({
+    expect(mergeTheme([[brand]], undefined)).toEqual({
       config: { background: "white", axis: { labelColor: "black" } },
       options: { renderer: "svg" },
       variant: undefined,
@@ -99,7 +110,7 @@ describe("mergeTheme", () => {
   });
 
   it("layers the active variant on top of the base", () => {
-    expect(mergeTheme(null, brand, "dark")).toEqual({
+    expect(mergeTheme([[brand]], "dark")).toEqual({
       config: { background: "black", axis: { labelColor: "white" } },
       options: { renderer: "svg" },
       variant: "dark",
@@ -107,30 +118,24 @@ describe("mergeTheme", () => {
   });
 
   it("ignores a variant the theme doesn't define", () => {
-    const resolved = mergeTheme(null, brand, "print");
+    const resolved = mergeTheme([[brand]], "print");
     expect(resolved.config).toEqual(brand.config);
     expect(resolved.variant).toBe("print");
   });
 
   it("only looks up variants the theme defines itself", () => {
-    expect(mergeTheme(null, brand, "toString").config).toEqual(brand.config);
-    expect(mergeTheme(null, brand, "__proto__").config).toEqual(brand.config);
+    expect(mergeTheme([[brand]], "toString").config).toEqual(brand.config);
+    expect(mergeTheme([[brand]], "__proto__").config).toEqual(brand.config);
   });
 
-  it("merges an array of themes from left to right", () => {
+  it("merges a provider's themes from left to right", () => {
     const compact: VegaTheme = {
       config: { axis: { labelFontSize: 9 }, background: "#fafafa" },
     };
-    expect(mergeTheme(null, [brand, compact], undefined).config).toEqual({
+    expect(mergeTheme([[brand, compact]], undefined).config).toEqual({
       background: "#fafafa",
       axis: { labelColor: "black", labelFontSize: 9 },
     });
-  });
-
-  it("skips falsy entries in a theme array", () => {
-    expect(
-      mergeTheme(null, [false, brand, null, undefined], undefined).config,
-    ).toEqual(brand.config);
   });
 
   it("applies every theme's base before any theme's variant", () => {
@@ -139,32 +144,49 @@ describe("mergeTheme", () => {
     };
     // The dark variant of `brand` must beat the base of a later theme, or
     // dark mode would end up with black labels.
-    expect(mergeTheme(null, [brand, highContrast], "dark").config).toEqual({
+    expect(mergeTheme([[brand, highContrast]], "dark").config).toEqual({
       background: "black",
       axis: { labelColor: "white", labelFontWeight: "bold" },
     });
   });
 
-  it("merges on top of a parent theme", () => {
-    const parent = mergeTheme(null, brand, "dark");
-    const child = mergeTheme(
-      parent,
-      { config: { axis: { labelFontSize: 9 } } },
-      "dark",
+  it("merges nested providers outermost first", () => {
+    const resolved = mergeTheme(
+      [[brand], [{ config: { axis: { labelFontSize: 9 } } }]],
+      undefined,
     );
-    expect(child.config).toEqual({
-      background: "black",
-      axis: { labelColor: "white", labelFontSize: 9 },
+    expect(resolved.config).toEqual({
+      background: "white",
+      axis: { labelColor: "black", labelFontSize: 9 },
     });
-    expect(child.options).toEqual({ renderer: "svg" });
+    expect(resolved.options).toEqual({ renderer: "svg" });
+  });
+
+  it("applies the variant to every provider in the stack", () => {
+    const panel: VegaTheme = {
+      config: { axis: { labelFontSize: 9 } },
+      variants: { dark: { config: { axis: { gridColor: "#333" } } } },
+    };
+    expect(mergeTheme([[brand], [panel]], "dark").config).toEqual({
+      background: "black",
+      axis: { labelColor: "white", labelFontSize: 9, gridColor: "#333" },
+    });
+  });
+
+  it("lets a nested provider's base beat an outer provider's variant", () => {
+    const panel: VegaTheme = { config: { background: "#fafafa" } };
+    expect(mergeTheme([[brand], [panel]], "dark").config).toMatchObject({
+      background: "#fafafa",
+    });
   });
 
   it("deep merges embed options", () => {
     const resolved = mergeTheme(
-      null,
       [
-        { options: { actions: { export: true, source: false } } },
-        { options: { actions: { editor: false }, renderer: "canvas" } },
+        [
+          { options: { actions: { export: true, source: false } } },
+          { options: { actions: { editor: false }, renderer: "canvas" } },
+        ],
       ],
       undefined,
     );
@@ -178,18 +200,16 @@ describe("mergeTheme", () => {
     const loaderA = { load: () => "a", options: { baseURL: "/a/" } };
     const loaderB = { baseURL: "/b/" };
     const resolved = mergeTheme(
-      null,
       [
-        { options: { loader: loaderA as never } },
-        { options: { loader: loaderB } },
+        [{ options: { loader: loaderA as never } }],
+        [{ options: { loader: loaderB } }],
       ],
       undefined,
     );
     expect(resolved.options.loader).toBe(loaderB);
 
     const inherited = mergeTheme(
-      null,
-      { options: { loader: loaderA as never } },
+      [[{ options: { loader: loaderA as never } }], [{}]],
       undefined,
     );
     expect(inherited.options.loader).toBe(loaderA);

@@ -142,9 +142,31 @@ describe("VegaThemeProvider", () => {
         axis: { labelColor: "#eee", labelFontSize: 8 },
       },
     });
-    // Starts from a clean slate: no parent theme and no parent variant.
+    // Ignores the parent's theme, but still follows its variant.
     expect(optionsForSpec("isolated")).toEqual({
-      config: { background: "#fafafa", axis: { labelFontSize: 9 } },
+      config: { background: "#fafafa", axis: { labelFontSize: 8 } },
+    });
+  });
+
+  it("applies a nested provider's variant to the outer themes too", async () => {
+    render(
+      <VegaThemeProvider theme={brand} variant="light">
+        <VegaEmbed spec="page" />
+        <VegaThemeProvider variant="dark">
+          <VegaEmbed spec="dark-section" />
+        </VegaThemeProvider>
+      </VegaThemeProvider>,
+    );
+    await waitFor(() => expect(embed).toHaveBeenCalledTimes(2));
+
+    expect(optionsForSpec("page")?.config).toEqual({
+      background: "#fff",
+      axis: { labelColor: "#333", gridColor: "#ddd" },
+    });
+    // brand + dark, with nothing left over from the light variant.
+    expect(optionsForSpec("dark-section")?.config).toEqual({
+      background: "#111",
+      axis: { labelColor: "#eee" },
     });
   });
 
