@@ -166,7 +166,9 @@ Rules:
 - The active variant is the one in effect where the chart is rendered. A provider without a `variant` prop uses its parent's.
 - A theme can set `options.theme` to a [vega-themes](https://github.com/vega/vega-themes) name such as `"dark"`. vega-embed applies that named theme underneath all other config, so provider, chart and spec config all win over it. For example, `variants: { dark: { options: { theme: "dark" } } }` uses vega-themes' dark theme as the base of your dark variant.
 - If a chart passes `options.config` as a URL string, it replaces the provider config.
-- Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`, so resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
+- Themes work the same with the SVG and canvas renderers, because Vega applies config before anything is drawn. A theme can set `options.renderer` to switch every chart under it, and a chart's own `options.renderer` still wins.
+- Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`. With the SVG renderer a `var()` color can look right on the page, because the browser resolves it in the SVG, but it is ignored on canvas, lost in PNG exports, left unresolved in SVG exports, and breaks numeric values such as font sizes. Resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
+- Canvas draws text once. If a theme names a web font, make sure it has loaded before charts render (for example with `await document.fonts.ready`), or canvas charts keep the fallback font until they are re-embedded.
 
 Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed. Define themes outside your components, or memoize them, when they contain functions such as `expressionFunctions` or a tooltip handler: functions are compared by reference, so a new function on every render re-embeds every chart on every render.
 
