@@ -77,8 +77,90 @@ const result: Result | null = useVegaEmbed(params);
 
 Returns the current [`Result`](https://vega.github.io/vega-embed/interfaces/Result.html) (or `null` while loading).
 
+## Theming with `VegaThemeProvider`
+
+Wrap any part of your app in a `VegaThemeProvider` to give every `<VegaEmbed>` and `useVegaEmbed` below it the same Vega / Vega-Lite config and embed options. A theme can define named variants such as `dark`, and providers can be nested to override part of a theme for one section of the page.
+
+```tsx
+import { VegaEmbed, VegaThemeProvider, type VegaTheme } from "react-vega";
+
+const brand: VegaTheme = {
+  config: {
+    font: "Inter, sans-serif",
+    background: "#ffffff",
+    axis: { labelColor: "#4b5563", gridColor: "#e5e7eb" },
+    range: { category: ["#2563eb", "#f97316", "#10b981"] },
+  },
+  options: { actions: false },
+  variants: {
+    dark: {
+      config: {
+        background: "#111827",
+        axis: { labelColor: "#d1d5db", gridColor: "#374151" },
+      },
+    },
+  },
+};
+
+function Dashboard({ isDark }: { isDark: boolean }) {
+  return (
+    <VegaThemeProvider theme={brand} variant={isDark ? "dark" : "light"}>
+      <VegaEmbed spec={revenueChart} /> {/* gets brand + dark */}
+      <VegaThemeProvider theme={compactTheme}> {/* nested override */}
+        <VegaEmbed spec={sparkline} />
+      </VegaThemeProvider>
+    </VegaThemeProvider>
+  );
+}
+```
+
+### `<VegaThemeProvider />`
+
+| Prop                   | Type                           | Default            | Notes                                                                                                                       |
+| ---------------------- | ------------------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `theme` **(required)** | `VegaTheme \| VegaTheme[]`     | —                  | A theme, or an array of themes merged left to right. Falsy entries are skipped, so `[brand, isCompact && compact]` works.   |
+| `variant`              | `string`                       | parent's `variant` | The variant to layer on top, e.g. `"dark"`. `"auto"` picks `"dark"` or `"light"` from `prefers-color-scheme` and follows changes. |
+| `inherit`              | `boolean`                      | `true`             | Merge on top of the enclosing provider. With `false`, the parent's theme and variant are ignored.                          |
+| `children`             | `React.ReactNode`              | —                  |                                                                                                                             |
+
+```ts
+type VegaThemeLayer = {
+  config?: Config; // Vega or Vega-Lite config
+  options?: Omit<EmbedOptions, "config">; // renderer, actions, tooltip, loader, expressionFunctions...
+};
+
+type VegaTheme = VegaThemeLayer & {
+  variants?: Record<string, VegaThemeLayer>; // e.g. { dark: {...}, print: {...} }
+};
+```
+
+### `useVegaTheme()`
+
+Returns the theme in effect at that point in the tree as `{ config, options, variant }`. `variant` is the resolved name, so `"auto"` comes back as `"dark"` or `"light"`. Outside a provider it returns `{ config: {}, options: {}, variant: undefined }`. Use it to style the UI around a chart to match, or to pass the same config to `embed()` yourself.
+
+### Merge order
+
+From lowest to highest priority:
+
+1. The outermost provider's themes, in array order, followed by the active variant of each of those themes.
+2. Each nested provider's themes, followed by their active variant. `inherit={false}` starts over at this provider.
+3. The chart's own `options` prop. `options.config` is merged into the config, and the other options override the theme's.
+4. The spec's own `config`, which vega-embed applies last.
+
+Rules:
+
+- Plain objects are deep-merged. Arrays and all other values replace what came before, so a nested theme's `range.category` replaces the parent's palette instead of extending it.
+- `undefined` never overwrites a defined value.
+- `options.loader` and `options.logger` are replaced as a whole, never merged.
+- A nested provider without a `variant` prop uses its parent's variant.
+- A theme can set `options.theme` to a [vega-themes](https://github.com/vega/vega-themes) name such as `"dark"`. vega-embed applies that named theme underneath all other config, so provider, chart and spec config all win over it. For example, `variants: { dark: { options: { theme: "dark" } } }` uses vega-themes' dark theme as the base of your dark variant.
+- If a chart passes `options.config` as a URL string, it replaces the provider config.
+- Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`, so resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
+
+Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed.
+
 ## Important
-Any changes to `spec` or `options` will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
+Any changes to `spec` or `options`, or to the theme from an enclosing [`VegaThemeProvider`](#theming-with-vegathemeprovider), will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
 
 ## Recipes
 
