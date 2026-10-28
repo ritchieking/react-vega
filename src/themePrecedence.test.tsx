@@ -138,6 +138,39 @@ describe("VegaThemeProvider with the real vega-embed", () => {
     ).toBe("#0a0a0a");
   });
 
+  it("switches named vega-themes per variant, with provider config on top", async () => {
+    // Background values come from vega-themes' carbonwhite and carbong100.
+    const carbon: VegaTheme = {
+      config: { axis: { labelFontSize: 13 } },
+      variants: {
+        light: { options: { theme: "carbonwhite" } },
+        dark: { options: { theme: "carbong100" } },
+      },
+    };
+    for (const [variant, background] of [
+      ["light", "#ffffff"],
+      ["dark", "#161616"],
+    ]) {
+      let view: Result["view"] | undefined;
+      const { container, unmount } = render(
+        <VegaThemeProvider theme={carbon} variant={variant}>
+          <VegaEmbed
+            spec={vegaLiteSpec()}
+            options={{ actions: false }}
+            onEmbed={(result) => {
+              view = result.view;
+            }}
+          />
+        </VegaThemeProvider>,
+      );
+      await waitFor(() => expect(view).toBeDefined());
+      expect(view!.background()).toBe(background);
+      const label = container.querySelector(".role-axis-label text");
+      expect(label?.getAttribute("font-size")).toBe("13px");
+      unmount();
+    }
+  });
+
   it("lets the spec's own config win over the provider", async () => {
     expect(
       await providerBackground(
