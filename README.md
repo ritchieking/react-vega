@@ -116,12 +116,23 @@ function Dashboard({ isDark }: { isDark: boolean }) {
 
 ### `<VegaThemeProvider />`
 
-| Prop                   | Type                           | Default            | Notes                                                                                                                       |
-| ---------------------- | ------------------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `theme` **(required)** | `VegaTheme \| VegaTheme[]`     | —                  | A theme, or an array of themes merged left to right. Falsy entries are skipped, so `[brand, isCompact && compact]` works.   |
-| `variant`              | `string`                       | parent's `variant` | The variant to layer on top, e.g. `"dark"`. `"auto"` picks `"dark"` or `"light"` from `prefers-color-scheme` and follows changes. |
-| `inherit`              | `boolean`                      | `true`             | Merge on top of the enclosing provider. With `false`, the parent's theme and variant are ignored.                          |
-| `children`             | `React.ReactNode`              | —                  |                                                                                                                             |
+| Prop       | Type                        | Default            | Notes                                                                                                                                    |
+| ---------- | --------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `theme`    | `VegaTheme \| VegaTheme[]`  | —                  | A theme, or an array of themes merged left to right. Falsy entries are skipped, so `[brand, isCompact && compact]` works.                |
+| `variant`  | `string`                    | parent's `variant` | The variant to apply, e.g. `"dark"`. `"auto"` picks `"dark"` or `"light"` from `prefers-color-scheme` and follows changes.               |
+| `inherit`  | `boolean`                   | `true`             | Merge on top of the enclosing providers' themes. With `false`, their themes are ignored, but their variant still applies unless you set one. |
+| `children` | `React.ReactNode`           | —                  |                                                                                                                                          |
+
+A variant applies to the themes of every enclosing provider, not just the provider that sets it. That makes a provider with only a `variant` an easy way to flip one section of the page:
+
+```tsx
+<VegaThemeProvider theme={brand} variant="light">
+  <VegaEmbed spec={revenueChart} /> {/* brand + light */}
+  <VegaThemeProvider variant="dark">
+    <VegaEmbed spec={heroChart} /> {/* brand + dark */}
+  </VegaThemeProvider>
+</VegaThemeProvider>
+```
 
 ```ts
 type VegaThemeLayer = {
@@ -143,7 +154,7 @@ Returns the theme in effect at that point in the tree as `{ config, options, var
 From lowest to highest priority:
 
 1. The outermost provider's themes, in array order, followed by the active variant of each of those themes.
-2. Each nested provider's themes, followed by their active variant. `inherit={false}` starts over at this provider.
+2. Each nested provider's themes, followed by the active variant of each of them. `inherit={false}` starts over at this provider.
 3. The chart's own `options` prop. `options.config` is merged into the config, and the other options override the theme's.
 4. The spec's own `config`, which vega-embed applies last.
 
@@ -152,7 +163,7 @@ Rules:
 - Plain objects are deep-merged. Arrays and all other values replace what came before, so a nested theme's `range.category` replaces the parent's palette instead of extending it.
 - `undefined` never overwrites a defined value.
 - `options.loader` and `options.logger` are replaced as a whole, never merged.
-- A nested provider without a `variant` prop uses its parent's variant.
+- The active variant is the one in effect where the chart is rendered. A provider without a `variant` prop uses its parent's.
 - A theme can set `options.theme` to a [vega-themes](https://github.com/vega/vega-themes) name such as `"dark"`. vega-embed applies that named theme underneath all other config, so provider, chart and spec config all win over it. For example, `variants: { dark: { options: { theme: "dark" } } }` uses vega-themes' dark theme as the base of your dark variant.
 - If a chart passes `options.config` as a URL string, it replaces the provider config.
 - Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`, so resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
