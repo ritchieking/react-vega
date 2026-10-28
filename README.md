@@ -167,7 +167,7 @@ Rules:
 - A theme can set `options.theme` to a [vega-themes](https://github.com/vega/vega-themes) name such as `"dark"`. vega-embed applies that named theme underneath all other config, so provider, chart and spec config all win over it. For example, `variants: { dark: { options: { theme: "dark" } } }` uses vega-themes' dark theme as the base of your dark variant.
 - If a chart passes `options.config` as a URL string, it replaces the provider config.
 - Themes work the same with the SVG and canvas renderers, because Vega applies config before anything is drawn. A theme can set `options.renderer` to switch every chart under it, and a chart's own `options.renderer` still wins.
-- Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`. With the SVG renderer a `var()` color can look right on the page, because the browser resolves it in the SVG, but it is ignored on canvas, lost in PNG exports, left unresolved in SVG exports, and breaks numeric values such as font sizes. Resolve design tokens to values (for example with `getComputedStyle`) before putting them in a theme.
+- Config values must be concrete. Vega can't resolve CSS custom properties such as `var(--brand)`. With the SVG renderer a `var()` color can look right on the page, because the browser resolves it in the SVG, but it is ignored on canvas, lost in PNG exports, left unresolved in SVG exports, and breaks numeric values such as font sizes. Resolve design tokens to values first, for example with [`resolveCssVariables`](#design-tokens-css-variables).
 - Canvas draws text once. If a theme names a web font, make sure it has loaded before charts render (for example with `await document.fonts.ready`), or canvas charts keep the fallback font until they are re-embedded.
 
 Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed. Define themes outside your components, or memoize them, when they contain functions such as `expressionFunctions` or a tooltip handler: functions are compared by reference, so a new function on every render re-embeds every chart on every render.
@@ -201,6 +201,31 @@ const smallLabels: VegaTheme = { config: { axis: { labelFontSize: 9 } } };
 ```
 
 Imported themes are complete configs, so keep them out of variants. A variant is applied after every base layer of its provider, so an imported theme there would override your own changes, and switching between an imported base theme and an imported variant theme leaves the base theme's extra settings in place. When you override a theme, set the same property it sets. Some themes, such as `fivethirtyeight`, set `fill` or `stroke` on marks, and in Vega-Lite those take precedence over `color`. vega-themes is already installed with vega-embed, but add it to your own dependencies if you import it.
+
+### Design tokens (CSS variables)
+
+Vega draws to canvas or SVG attributes, where `var(--brand)` doesn't resolve. `resolveCssVariables(value, element?)` replaces every `var(--name)` or `var(--name, fallback)` in a theme with its computed value on `element` (default: `document.documentElement`). A string that is a single `var()` holding a number, such as `"var(--chart-font-size)"`, becomes a number.
+
+```tsx
+import { resolveCssVariables, VegaThemeProvider } from "react-vega";
+
+const tokens = {
+  config: {
+    background: "var(--surface)",
+    font: "var(--font-sans)",
+    axis: { labelColor: "var(--text-muted)", labelFontSize: "var(--chart-font-size)" },
+    range: { category: ["var(--accent-1)", "var(--accent-2)", "var(--accent-3)"] },
+  },
+};
+
+function Charts({ isDark }: { isDark: boolean }) {
+  // Re-resolve whenever the values behind the variables change, e.g. on a theme switch.
+  const theme = React.useMemo(() => resolveCssVariables(tokens), [isDark]);
+  return <VegaThemeProvider theme={theme}>{/* charts */}</VegaThemeProvider>;
+}
+```
+
+The values are read when you call it, so call it again when the CSS variables change. An unset variable uses its fallback, or stays as it is when there is none. Without a DOM (server rendering) the input is returned unchanged.
 
 ## Important
 Any changes to `spec` or `options`, or to the theme from an enclosing [`VegaThemeProvider`](#theming-with-vegathemeprovider), will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
