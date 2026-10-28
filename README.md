@@ -172,6 +172,36 @@ Rules:
 
 Changing the theme or the variant re-embeds every chart under the provider, just like changing `options` on a single chart. Re-rendering with a deep-equal theme does not re-embed. Define themes outside your components, or memoize them, when they contain functions such as `expressionFunctions` or a tooltip handler: functions are compared by reference, so a new function on every render re-embeds every chart on every render.
 
+### Building on vega-themes
+
+[vega-themes](https://github.com/vega/vega-themes) ships ready-made configs such as `fivethirtyeight`, `quartz`, `dark` and IBM's Carbon set. There are two ways to build on them.
+
+**Different themes for light and dark:** name them in your variants with vega-embed's `theme` option. vega-embed applies a named theme underneath all other config, so the rest of your theme still wins whichever one is active:
+
+```tsx
+const carbon: VegaTheme = {
+  config: { axis: { labelFontSize: 13 } }, // applied on top of either theme
+  variants: {
+    light: { options: { theme: "carbonwhite" } },
+    dark: { options: { theme: "carbong100" } },
+  },
+};
+
+<VegaThemeProvider theme={carbon} variant="auto">{/* charts */}</VegaThemeProvider>;
+```
+
+**Extending one theme:** import its config and list your changes after it. It then goes through the provider's deep merge, so `useVegaTheme()` returns it and nested providers can adjust it:
+
+```tsx
+import { fivethirtyeight } from "vega-themes";
+
+const smallLabels: VegaTheme = { config: { axis: { labelFontSize: 9 } } };
+
+<VegaThemeProvider theme={[{ config: fivethirtyeight }, smallLabels]}>{/* charts */}</VegaThemeProvider>;
+```
+
+Imported themes are complete configs, so keep them out of variants. A variant is applied after every base layer of its provider, so an imported theme there would override your own changes, and switching between an imported base theme and an imported variant theme leaves the base theme's extra settings in place. vega-themes is already installed with vega-embed, but add it to your own dependencies if you import it.
+
 ## Important
 Any changes to `spec` or `options`, or to the theme from an enclosing [`VegaThemeProvider`](#theming-with-vegathemeprovider), will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
 
