@@ -2,6 +2,8 @@ import React from "react";
 import embed from "vega-embed";
 import deepEqual from "fast-deep-equal";
 import type { Result, VisualizationSpec, EmbedOptions } from "vega-embed";
+import { VegaThemeContext } from "./VegaThemeContext";
+import { applyTheme } from "./mergeTheme";
 
 export type UseVegaEmbedParams = {
   ref: React.RefObject<HTMLDivElement | null>;
@@ -14,7 +16,15 @@ export type UseVegaEmbedParams = {
 export function useVegaEmbed(params: UseVegaEmbedParams): Result | null {
   const [result, setResult] = React.useState<Result | null>(null);
 
-  const { ref, spec, onEmbed, onError, options = {} } = params;
+  const { ref, spec, onEmbed, onError } = params;
+
+  // Under a <VegaThemeProvider>, merge the provider's theme under the chart's
+  // own options. Without one, pass `options` through untouched.
+  const theme = React.useContext(VegaThemeContext);
+  const options = React.useMemo(
+    () => (theme ? applyTheme(theme, params.options) : (params.options ?? {})),
+    [theme, params.options],
+  );
 
   useDeepEffect(() => {
     let cancel = false;
