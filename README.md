@@ -1,5 +1,7 @@
 # `react-vega`
 
+> **Prerelease fork.** `@ritchieking/react-vega` is react-vega 8 plus [`VegaThemeProvider`](#theming-with-vegathemeprovider), published so it can be tried before it lands upstream. Source: [ritchieking/react-vega `theme-provider`](https://github.com/ritchieking/react-vega/tree/theme-provider). Install with `npm i @ritchieking/react-vega@next vega-embed vega-lite`.
+
 [![npm version](https://img.shields.io/npm/v/react-vega.svg)](https://www.npmjs.com/package/react-vega)
 
 A lightweight React wrapper around [`vega-embed`](https://github.com/vega/vega-embed)
