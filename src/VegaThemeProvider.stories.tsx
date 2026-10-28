@@ -1,6 +1,10 @@
 import React from "react";
 import { VegaEmbed } from "./VegaEmbed";
-import { useVegaTheme, VegaThemeProvider } from "./VegaThemeProvider";
+import {
+  useVegaTheme,
+  VegaThemeProvider,
+  type VegaTheme,
+} from "./VegaThemeProvider";
 import { LineSpec, ScatterSpec, ThemeableBarSpec } from "./stories/specs";
 import { brandTheme, compactTheme } from "./stories/themes";
 
@@ -47,6 +51,31 @@ export const DarkModeToggle = () => {
       </p>
       <VegaThemeProvider theme={brandTheme} variant={variant}>
         <VegaEmbed spec={ThemeableBarSpec} />
+      </VegaThemeProvider>
+    </div>
+  );
+};
+
+const canvasTheme: VegaTheme = { options: { renderer: "canvas" } };
+
+export const Canvas = () => {
+  const [isDark, setIsDark] = React.useState(false);
+  const variant = isDark ? "dark" : "light";
+
+  return (
+    <div style={pageStyle(variant)}>
+      <p>
+        Both charts are drawn on canvas because a second theme sets{" "}
+        <code>options.renderer</code>.{" "}
+        <button onClick={() => setIsDark((value) => !value)}>
+          Switch to {isDark ? "light" : "dark"}
+        </button>
+      </p>
+      <VegaThemeProvider theme={[brandTheme, canvasTheme]} variant={variant}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+          <VegaEmbed spec={ThemeableBarSpec} />
+          <VegaEmbed spec={LineSpec} />
+        </div>
       </VegaThemeProvider>
     </div>
   );
