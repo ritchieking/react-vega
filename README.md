@@ -200,7 +200,7 @@ const smallLabels: VegaTheme = { config: { axis: { labelFontSize: 9 } } };
 <VegaThemeProvider theme={[{ config: fivethirtyeight }, smallLabels]}>{/* charts */}</VegaThemeProvider>;
 ```
 
-Imported themes are complete configs, so keep them out of variants. A variant is applied after every base layer of its provider, so an imported theme there would override your own changes, and switching between an imported base theme and an imported variant theme leaves the base theme's extra settings in place. vega-themes is already installed with vega-embed, but add it to your own dependencies if you import it.
+Imported themes are complete configs, so keep them out of variants. A variant is applied after every base layer of its provider, so an imported theme there would override your own changes, and switching between an imported base theme and an imported variant theme leaves the base theme's extra settings in place. When you override a theme, set the same property it sets. Some themes, such as `fivethirtyeight`, set `fill` or `stroke` on marks, and in Vega-Lite those take precedence over `color`. vega-themes is already installed with vega-embed, but add it to your own dependencies if you import it.
 
 ## Important
 Any changes to `spec` or `options`, or to the theme from an enclosing [`VegaThemeProvider`](#theming-with-vegathemeprovider), will cause the view to be torn down and re-embedded. If you need to update the view without re-embedding, use the [View API](https://vega.github.io/vega/docs/api/view). Refer to the [Recipes](#recipes) section for common use cases.
