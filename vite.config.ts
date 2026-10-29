@@ -1,25 +1,21 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
-import fs from "node:fs";
 import path from "node:path";
 
 export default defineConfig({
   plugins: [
     react(),
     dts({
-      include: ["src/VegaEmbed.tsx"],
-      afterBuild: () => {
-        fs.renameSync(
-          path.resolve(__dirname, "dist/VegaEmbed.d.ts"),
-          path.resolve(__dirname, "dist/react-vega.d.ts")
-        );
-      },
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+      exclude: ["src/**/*.test.*", "src/**/*.stories.*", "src/stories/**"],
+      // Bundle all declarations into dist/react-vega.d.ts (named after `fileName`).
+      rollupTypes: true,
     }),
   ],
   build: {
     lib: {
-      entry: path.resolve(__dirname, "src/VegaEmbed.tsx"),
+      entry: path.resolve(__dirname, "src/index.ts"),
       name: "VegaEmbed",
       fileName: "react-vega",
       formats: ["es"],
