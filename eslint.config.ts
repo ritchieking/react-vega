@@ -10,7 +10,7 @@ module.exports = tseslint.config(
   eslint.configs.recommended,
   tseslint.configs.recommended,
   pluginReact,
-  globalIgnores(["**/*.test.tsx"]),
+  globalIgnores(["**/*.test.ts", "**/*.test.tsx"]),
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     languageOptions: { globals: globals.browser },
